@@ -571,7 +571,38 @@ liftC.addEventListener("pointerup", async (e) => {
   $("lift-spin").hidden = true;
 });
 $("lift-person").addEventListener("click", () => { if (liftJoints) liftPerson(); else $("lift-note").textContent = t("liftNone"); });
-function afterMask() { drawLift(); $("lift-use").disabled = !liftMask; $("lift-note").textContent = t("liftOk"); }
+function afterMask() { drawLift(); $("lift-use").disabled = !liftMask; $("lift-note").textContent = t("liftOk"); renderRecipe(); }
+
+// On-device shot recipe read from the reference pose: framing, camera height, subject position, orientation.
+function shotRecipe(j, w, h) {
+  if (!j) return null;
+  const bn = lang === "bn", out = [];
+  const has = (k) => j[k][0] || j[k][1];
+  const framing = has("an") ? (bn ? "পুরো শরীর" : "Full body") : has("kn") ? (bn ? "হাঁটু পর্যন্ত" : "Knees up") : has("hip") ? (bn ? "কোমর পর্যন্ত" : "Waist up") : (bn ? "ক্লোজ-আপ" : "Close-up");
+  out.push([bn ? "ফ্রেম" : "Framing", framing]);
+  out.push([bn ? "ফোন" : "Phone", h >= w ? (bn ? "খাড়া (portrait)" : "Vertical (portrait)") : (bn ? "আড়াআড়ি (landscape)" : "Horizontal (landscape)")]);
+  const sM = mid(j.sh[0], j.sh[1]), hM = mid(j.hip[0], j.hip[1]);
+  if (has("an") && hM && sM) {
+    const an = mid(j.an[0], j.an[1]);
+    const ratio = (an.y - hM.y) / Math.max(0.01, hM.y - sM.y); // legs vs torso, distorted by camera height
+    const height = ratio > 2.55 ? (bn ? "নিচু — হাঁটুর উচ্চতা, একটু উপরে কাত" : "Low — knee height, tilt up a little")
+      : ratio < 1.8 ? (bn ? "উঁচু — মাথার উপর থেকে, নিচে কাত" : "High — above head, tilt down")
+      : (bn ? "বুক/কোমর সমান উচ্চতা" : "Chest to waist height, level");
+    out.push([bn ? "ক্যামেরা উচ্চতা" : "Camera height", height]);
+  } else if (sM) {
+    out.push([bn ? "ক্যামেরা উচ্চতা" : "Camera height", bn ? "চোখের সমান বা একটু উপরে" : "Eye level or slightly above"]);
+  }
+  const cx = (sM || j.nose).x;
+  out.push([bn ? "ফ্রেমে অবস্থান" : "Subject in frame", cx < 0.42 ? (bn ? "বাম এক-তৃতীয়াংশে" : "Left third") : cx > 0.58 ? (bn ? "ডান এক-তৃতীয়াংশে" : "Right third") : (bn ? "মাঝখানে" : "Centre")]);
+  const top = j.nose ? j.nose.y : sM.y;
+  if (top < 0.12) out.push([bn ? "মাথার উপরে" : "Headroom", bn ? "খুব কম জায়গা — কাছ থেকে টাইট ফ্রেম" : "Very little — tight crop"]);
+  return out;
+}
+function renderRecipe() {
+  const r = shotRecipe(liftMask && maskInfo()?.person ? liftJoints : null, liftSrc?.width || 1, liftSrc?.height || 1);
+  $("lift-recipe").hidden = !r;
+  if (r) $("lift-recipe").innerHTML = `<b>${lang === "bn" ? "শট রেসিপি" : "Shot recipe"}</b>` + r.map(([k, v]) => `<span><em>${k}</em>${v}</span>`).join("");
+}
 function maskCanvas() {
   const { w, h, data } = liftMask, c = document.createElement("canvas"); c.width = w; c.height = h;
   const x = c.getContext("2d"), id = x.createImageData(w, h);
