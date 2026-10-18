@@ -1,6 +1,6 @@
 // Cache the app shell, plus the MediaPipe runtime and models after first use, so the app opens offline.
-const CACHE = "shotsathi-v3";
-const SHELL = ["./", "index.html", "app.js", "poses.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+const CACHE = "shotsathi-v4";
+const SHELL = ["./", "index.html", "app.js", "poses.js", "onboard.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 const CDN = ["cdn.jsdelivr.net", "storage.googleapis.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });

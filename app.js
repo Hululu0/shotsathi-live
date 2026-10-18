@@ -1,7 +1,8 @@
 // ShotSathi Live — pose guide camera.
 // Everything runs on-device: MediaPipe Tasks Vision for pose landmarks and subject cut-outs.
 
-import { POSES, poseCanvas } from "./poses.js";
+import { POSES, CATEGORIES, poseCanvas } from "./poses.js";
+import { runOnboarding } from "./onboard.js";
 
 const $ = (id) => document.getElementById(id);
 const VISION = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
@@ -473,7 +474,9 @@ function renderTray() {
     + `<a class="pill pin" href="https://www.pinterest.com/search/pins/?q=${encodeURIComponent(PIN_Q[filter])}" target="_blank" rel="noopener">Pinterest ↗</a>`;
   const add = `<button class="pose add" id="tray-add"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 17-5-5-8 7"/></svg><span>${bn ? "ছবি থেকে" : "From photo"}</span></button>`;
   const mine = filter === "all" || filter === "mine" ? S.library.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><img src="${g.cut}" alt=""><span>${esc(g.name)}</span><span class="del" data-del="${g.id}" role="button" aria-label="Delete">×</span></button>`).join("") : "";
-  const list = filter === "mine" ? [] : BUILTIN.filter((g) => filter === "all" || g.gender === filter);
+  const pri = CATEGORIES[goal] || [];
+  const rank = (g) => { const k = pri.indexOf(g.id); return k < 0 ? 99 : k; };
+  const list = filter === "mine" ? [] : BUILTIN.filter((g) => filter === "all" || g.gender === filter).sort((a, b) => rank(a) - rank(b));
   const built = list.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><img src="${thumbFor(g)}" alt=""><span>${g.name}</span></button>`).join("");
   const empty = filter === "mine" && !S.library.length ? `<p class="trayhint">${bn ? "Pinterest থেকে পছন্দের পোজের স্ক্রিনশট নিন, তারপর \"ছবি থেকে\" চাপুন।" : "Screenshot a pose you like on Pinterest, then tap From photo."}</p>` : "";
   $("tray").innerHTML = add + mine + built + empty;
@@ -761,19 +764,43 @@ function applyLang() {
 $("l-en").addEventListener("click", () => { lang = "en"; save("ssl-lang", lang); applyLang(); });
 $("l-bn").addEventListener("click", () => { lang = "bn"; save("ssl-lang", lang); applyLang(); });
 
-$("b-start").addEventListener("click", async () => {
+async function openCamera() {
   if (window.DeviceOrientationEvent?.requestPermission) { try { await DeviceOrientationEvent.requestPermission(); } catch {} }
   const ok = await startCamera();
   $("start").hidden = true;
   if (!ok) return;
   updateAssistIdle();
   getPoseVideo().then(() => updateAssistIdle()).catch((e) => { console.warn(e); aiFailed = true; updateAssistIdle(); });
-});
+}
+$("b-start").addEventListener("click", openCamera);
+
+let goal = load("ssl-goal") || "";
+function firstPose() {
+  const ids = CATEGORIES[goal] || [];
+  const ok = (g) => filter === "all" || filter === "mine" || g.gender === filter;
+  return ids.map((id) => BUILTIN.find((g) => g.id === id)).find((g) => g && ok(g)) || BUILTIN.find(ok) || BUILTIN[0];
+}
+function showOnboarding() {
+  $("start").hidden = true;
+  runOnboarding({
+    lang,
+    onLang: (l) => { lang = l; save("ssl-lang", l); applyLang(); },
+    onDone: ({ who, goal: g }) => {
+      save("ssl-onboarded", "1");
+      filter = who; save("ssl-filter", who);
+      goal = g; save("ssl-goal", g);
+      setGhost(firstPose());
+      openCamera();
+    },
+  });
+}
+$("b-replay").addEventListener("click", showOnboarding);
 
 loadLibrary();
 resize();
 applyLang();
-setGhost(BUILTIN.find((g) => filter === "all" || filter === "mine" || g.gender === filter) || BUILTIN[0]);
+setGhost(firstPose());
+if (!load("ssl-onboarded")) showOnboarding();
 requestAnimationFrame(loop);
 
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});

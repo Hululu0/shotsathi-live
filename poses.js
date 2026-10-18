@@ -53,6 +53,8 @@ const RAW = [
     [50,16],[38,29],[62,29],[36,47],[64,47],[47,52],[53,52],[44,68],[56,68],[45,97],[56,97],[44,127],[57,127]],
   ["Jacket over shoulder", "m", "Standing", "Hold your jacket hooked over one shoulder, other hand in a pocket. Weight on one leg.", "Hip height, full body.",
     [51,13],[38,29],[62,29],[33,47],[68,40],[41,64],[64,24],[44,68],[56,68],[45,97],[54,97],[44,127],[55,126]],
+  ["Mirror check", "m", "Selfie", "Phone at chest height in one hand, the other hand in a pocket. Stand a little sideways to the mirror.", "Keep the phone straight and the mirror clean.",
+    [50,14],[38,29],[62,29],[33,47],[66,42],[41,64],[56,26],[44,68],[56,68],[45,97],[56,97],[44,127],[57,127]],
   ["Side profile", "m", "Standing", "Stand sideways to the camera and look ahead into the distance. Strong jawline shot.", "Eye level, straight from the side.",
     [54,13],[46,29],[54,29],[45,47],[56,48],[47,64],[57,64],[47,68],[53,68],[48,97],[54,97],[46,127],[57,127]],
 ];
@@ -65,6 +67,17 @@ export const POSES = RAW.map(([name, gender, cat, how, cam, nose, s0, s1, e0, e1
   name, gender, cat, how, cam, builtin: true, aspect: BOX.w / BOX.h,
   joints: { nose: n(nose), sh: [n(s0), n(s1)], el: [n(e0), n(e1)], wr: [n(w0), n(w1)], hip: [n(h0), n(h1)], kn: [n(k0), n(k1)], an: [n(a0), n(a1)] },
 }));
+
+// What each onboarding goal starts with (by pose name).
+const CAT_NAMES = {
+  mirror: ["Mirror selfie", "Mirror check"],
+  fullbody: ["Wall lean, foot up", "Twirl", "Look back", "Pockets and lean", "Railing lean", "Jacket over shoulder", "Arms crossed"],
+  street: ["Walk away, glance back", "Walk toward, look away", "Street squat", "Low squat", "Coffee in hand", "Pockets and lean"],
+  candid: ["Coffee in hand", "Hair tuck", "Walk away, glance back", "Phone check", "Fix the watch", "Walk toward, look away"],
+  portrait: ["Look back", "Hat or sunglasses", "Hands in hair", "Hair tuck", "Collar pop", "Hand through hair", "Side profile"],
+  sitting: ["Steps, knees up", "Cross-legged on floor", "Street squat", "Elbows on knees", "Low squat"],
+};
+export const CATEGORIES = Object.fromEntries(Object.entries(CAT_NAMES).map(([k, names]) => [k, names.map((nm) => POSES.find((p) => p.name === nm)?.id).filter(Boolean)]));
 
 /* ---------------- Silhouette renderer ---------------- */
 const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
