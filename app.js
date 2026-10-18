@@ -1,6 +1,8 @@
 // ShotSathi Live — pose guide camera.
 // Everything runs on-device: MediaPipe Tasks Vision for pose landmarks and subject cut-outs.
 
+import { POSES, poseCanvas } from "./poses.js";
+
 const $ = (id) => document.getElementById(id);
 const VISION = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 const MODELS = {
@@ -67,36 +69,16 @@ const t = (k) => T[lang][k];
 function load(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
 
-/* ---------------- Built-in poses (display coords in a 100x140 box; chain 0 = screen-left) ---------------- */
-const BUILTIN = [
-  ["Pocket lean", [52,14],[40,30],[60,30],[33,47],[67,48],[41,64],[70,64],[44,70],[56,70],[42,96],[60,96],[41,126],[66,125]],
-  ["Over shoulder", [57,14],[45,30],[57,30],[43,50],[59,50],[44,68],[58,68],[46,70],[54,70],[45,97],[56,97],[44,127],[57,127]],
-  ["Walking", [50,14],[40,30],[60,30],[36,47],[64,48],[39,62],[70,60],[44,70],[56,70],[40,96],[60,94],[31,125],[67,126]],
-  ["Hand in hair", [49,15],[40,30],[60,30],[35,48],[72,19],[42,64],[57,9],[44,70],[56,70],[47,97],[56,97],[55,127],[47,127]],
-  ["Arms crossed", [54,13],[39,30],[61,30],[37,46],[63,46],[58,44],[42,44],[44,70],[56,70],[41,97],[59,97],[38,127],[62,127]],
-  ["Wall lean", [46,15],[37,31],[57,31],[31,48],[63,46],[36,64],[72,34],[42,71],[54,71],[44,98],[60,97],[44,127],[69,124]],
-  ["Hands on hips", [50,14],[40,30],[60,30],[28,46],[72,46],[41,64],[59,64],[43,68],[57,68],[42,96],[58,96],[38,126],[62,126]],
-  ["Victory", [50,16],[40,30],[60,30],[30,18],[70,18],[26,4],[74,4],[44,70],[56,70],[42,97],[58,97],[38,127],[62,127]],
-  ["Seated", [50,42],[41,58],[59,58],[37,75],[63,75],[46,84],[54,84],[45,100],[55,100],[39,80],[61,80],[37,121],[63,121]],
-].map(([name, nose, s0, s1, e0, e1, w0, w1, h0, h1, k0, k1, a0, a1]) => {
-  const n = (p) => ({ x: p[0] / 100, y: p[1] / 140 });
-  return { id: "b-" + name, name, builtin: true, aspect: 100 / 140,
-    joints: { nose: n(nose), sh: [n(s0), n(s1)], el: [n(e0), n(e1)], wr: [n(w0), n(w1)], hip: [n(h0), n(h1)], kn: [n(k0), n(k1)], an: [n(a0), n(a1)] } };
-});
+/* ---------------- Built-in poses (see poses.js) ---------------- */
+const BUILTIN = POSES;
+const GHOST_COLORS = { body: "#F2B04C", hair: "#A86A1C", edge: "rgba(70,40,5,.7)", shade: "rgba(90,50,0,.25)" };
+const THUMB_COLORS = { body: "#E9D9C4", hair: "#4a3426", edge: "rgba(0,0,0,.45)", shade: "rgba(0,0,0,.2)" };
 const CHAIN = ["sh", "el", "wr", "hip", "kn", "an"];
 const MP = { nose: 0, sh: [11, 12], el: [13, 14], wr: [15, 16], hip: [23, 24], kn: [25, 26], an: [27, 28] };
-
-function skeletonSVG(j, w = 100, h = 140) {
-  const P = (p) => `${(p.x * w).toFixed(1)} ${(p.y * h).toFixed(1)}`;
-  const L = (a, b) => (a && b ? `<line x1="${(a.x*w).toFixed(1)}" y1="${(a.y*h).toFixed(1)}" x2="${(b.x*w).toFixed(1)}" y2="${(b.y*h).toFixed(1)}"/>` : "");
-  let s = "";
-  for (const i of [0, 1]) s += L(j.sh[i], j.el[i]) + L(j.el[i], j.wr[i]) + L(j.hip[i], j.kn[i]) + L(j.kn[i], j.an[i]);
-  s += L(j.sh[0], j.sh[1]) + L(j.hip[0], j.hip[1]);
-  const ms = mid(j.sh[0], j.sh[1]), mh = mid(j.hip[0], j.hip[1]);
-  s += L(ms, mh);
-  if (j.nose) s += `<circle cx="${(j.nose.x*w).toFixed(1)}" cy="${(j.nose.y*h).toFixed(1)}" r="${(w*0.075).toFixed(1)}"/>`;
-  void P;
-  return s;
+const thumbCache = new Map();
+function thumbFor(p) {
+  if (!thumbCache.has(p.id)) thumbCache.set(p.id, poseCanvas(p, 150, THUMB_COLORS).toDataURL());
+  return thumbCache.get(p.id);
 }
 const mid = (a, b) => (a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : a || b || null);
 
@@ -185,11 +167,11 @@ function vidToStage(u, v) {
 
 /* ---------------- Ghost ---------------- */
 function resetTransform() {
-  S.tf = { x: W / 2, y: H * 0.47, s: 1, r: 0, flip: S.tf.flip || false };
+  S.tf = { x: W / 2, y: H * 0.43, s: 1, r: 0, flip: S.tf.flip || false };
 }
 function ghostBase() {
   const a = S.ghost?.aspect || 0.7;
-  let bh = H * 0.7, bw = bh * a;
+  let bh = H * 0.66, bw = bh * a;
   if (bw > W * 0.92) { bw = W * 0.92; bh = bw / a; }
   return { bw, bh };
 }
@@ -223,16 +205,18 @@ async function setGhost(g) {
     const img = new Image(); img.src = g.cut;
     await img.decode().catch(() => {});
     S.ghostImg = img; S.ghostOutline = makeOutline(img);
+  } else if (g?.builtin) {
+    S.ghostImg = poseCanvas(g, 900, GHOST_COLORS); S.ghostOutline = makeOutline(S.ghostImg);
   }
   resetTransform();
   S.score = 0; S.holdStart = 0;
   $("ghostbar").hidden = !g;
-  $("b-style").hidden = !g?.cut;
   renderTray();
+  renderInfo();
   updateAssistIdle();
 }
 function makeOutline(img) {
-  const w = img.naturalWidth, h = img.naturalHeight, c = document.createElement("canvas");
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, c = document.createElement("canvas");
   c.width = w; c.height = h; const x = c.getContext("2d");
   const r = Math.max(2, Math.round(Math.max(w, h) / 160));
   for (let a = 0; a < 16; a++) x.drawImage(img, Math.cos(a / 16 * 6.283) * r, Math.sin(a / 16 * 6.283) * r);
@@ -417,7 +401,7 @@ function drawGhost(Tg) {
     ctx.drawImage(src, -bw / 2, -bh / 2, bw, bh);
     ctx.restore();
   }
-  if (Tg) drawSkeleton(Tg, src ? "rgba(242,176,76,.55)" : `rgba(242,176,76,${Math.min(1, S.opacity + 0.35)})`, src ? 3 : 7, true);
+  if (Tg && !src) drawSkeleton(Tg, `rgba(242,176,76,${Math.min(1, S.opacity + 0.35)})`, 7, true);
 }
 function drawSkeleton(j, color, width, isTarget) {
   ctx.save();
@@ -480,13 +464,31 @@ function loadLibrary() { try { S.library = JSON.parse(load("ssl-lib") || "[]"); 
 function saveLibrary() {
   while (S.library.length && !save("ssl-lib", JSON.stringify(S.library))) S.library.pop(); // drop oldest if storage is full
 }
+let filter = load("ssl-filter") || "all";
+const PIN_Q = { all: "aesthetic photo poses", w: "aesthetic poses for women", m: "aesthetic poses for men", mine: "aesthetic photo poses" };
 function renderTray() {
-  const cur = S.ghost?.id;
-  const add = `<button class="pose add" id="tray-add"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 17-5-5-8 7"/></svg><span>${lang === "bn" ? "ছবি থেকে" : "From photo"}</span></button>`;
-  const mine = S.library.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><img src="${g.cut}" alt=""><span>${esc(g.name)}</span><span class="del" data-del="${g.id}" role="button" aria-label="Delete">×</span></button>`).join("");
-  const built = BUILTIN.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><svg viewBox="0 0 100 140">${skeletonSVG(g.joints)}</svg><span>${g.name}</span></button>`).join("");
-  $("tray").innerHTML = add + mine + built;
+  const cur = S.ghost?.id, bn = lang === "bn";
+  const lbl = { all: bn ? "সব" : "All", w: bn ? "মেয়ে" : "Women", m: bn ? "ছেলে" : "Men", mine: bn ? "আমার" : "Mine" };
+  $("filters").innerHTML = Object.keys(lbl).map((k) => `<button class="pill" data-f="${k}" aria-pressed="${filter === k}">${lbl[k]}</button>`).join("")
+    + `<a class="pill pin" href="https://www.pinterest.com/search/pins/?q=${encodeURIComponent(PIN_Q[filter])}" target="_blank" rel="noopener">Pinterest ↗</a>`;
+  const add = `<button class="pose add" id="tray-add"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 17-5-5-8 7"/></svg><span>${bn ? "ছবি থেকে" : "From photo"}</span></button>`;
+  const mine = filter === "all" || filter === "mine" ? S.library.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><img src="${g.cut}" alt=""><span>${esc(g.name)}</span><span class="del" data-del="${g.id}" role="button" aria-label="Delete">×</span></button>`).join("") : "";
+  const list = filter === "mine" ? [] : BUILTIN.filter((g) => filter === "all" || g.gender === filter);
+  const built = list.map((g) => `<button class="pose" data-id="${g.id}" aria-pressed="${g.id === cur}"><img src="${thumbFor(g)}" alt=""><span>${g.name}</span></button>`).join("");
+  const empty = filter === "mine" && !S.library.length ? `<p class="trayhint">${bn ? "Pinterest থেকে পছন্দের পোজের স্ক্রিনশট নিন, তারপর \"ছবি থেকে\" চাপুন।" : "Screenshot a pose you like on Pinterest, then tap From photo."}</p>` : "";
+  $("tray").innerHTML = add + mine + built + empty;
 }
+$("filters").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  filter = b.dataset.f; save("ssl-filter", filter); renderTray(); $("tray").scrollLeft = 0;
+});
+function renderInfo() {
+  const g = S.ghost, el = $("pinfo");
+  if (!g?.builtin) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<b>${esc(g.name)}</b><span>${esc(g.how)}</span><small>📷 ${esc(g.cam)}</small>`;
+}
+$("pinfo").addEventListener("click", () => $("pinfo").classList.toggle("open"));
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 $("tray").addEventListener("click", (e) => {
   const del = e.target.closest("[data-del]");
@@ -740,7 +742,7 @@ $("b-start").addEventListener("click", async () => {
 loadLibrary();
 resize();
 applyLang();
-setGhost(BUILTIN[0]);
+setGhost(BUILTIN.find((g) => filter === "all" || filter === "mine" || g.gender === filter) || BUILTIN[0]);
 requestAnimationFrame(loop);
 
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
