@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>ShotSathi Live</title>
+<meta name="description" content="Pose guide camera: lift a pose from any photo, line it up on your live camera, and let Pose Assist coach you until it locks in.">
+<meta name="theme-color" content="#0B0F14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Hind+Siliguri:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Camera-first layout: the viewfinder fills the screen; controls float in safe-area-aware bars. */
+:root{
+  --bg:#0B0F14; --panel:rgba(16,22,30,.82); --panel-solid:#141B24; --ink:#EEF2F6; --muted:#9AA7B5; --line:rgba(255,255,255,.14);
+  --ghost:#F2B04C; --match:#3DDC84; --warn:#FFB347; --bad:#FF6B5E; --accent:#7E9BFF;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"Hind Siliguri","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px); --sr:env(safe-area-inset-right,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;overflow:hidden;overscroll-behavior:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--ghost);outline-offset:2px}
+[hidden]{display:none!important}
+
+#stage{position:fixed;inset:0;touch-action:none;background:#000}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#video.mirror{transform:scaleX(-1)}
+#ov{position:absolute;inset:0;width:100%;height:100%}
+
+/* Top bar */
+.top{position:fixed;left:0;right:0;top:0;padding:calc(var(--st) + 10px) max(12px,var(--sr)) 10px max(12px,var(--sl));display:flex;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.55),transparent);z-index:5}
+.brand{font-family:var(--display);font-size:15px;letter-spacing:-.01em;margin-right:auto;white-space:nowrap}
+.brand span{color:var(--ghost)}
+.ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(0,0,0,.35);position:relative}
+.ibtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ibtn[aria-pressed="true"]{background:var(--ink);color:#0B0F14}
+.ibtn small{position:absolute;right:3px;bottom:2px;font-family:var(--mono);font-size:9px;font-weight:700}
+
+/* Assist pill */
+.assist{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--st) + 62px);z-index:5;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);padding:6px 14px 6px 6px;border-radius:999px;backdrop-filter:blur(10px);max-width:calc(100% - 24px);transition:border-color .2s,background .2s}
+.assist.ok{border-color:var(--match);background:rgba(18,60,38,.85)}
+.ring{width:38px;height:38px;flex:0 0 auto}
+.ring text{font-family:var(--mono);font-size:11px;font-weight:700;fill:var(--ink)}
+.assist b{font-weight:600;font-size:15px;line-height:1.2}
+.assist small{display:block;color:var(--muted);font-size:12px}
+.chips{position:fixed;left:max(12px,var(--sl));top:calc(var(--st) + 112px);display:flex;flex-direction:column;gap:6px;z-index:4;pointer-events:none}
+.chip{font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.55);padding:4px 8px;border-radius:6px;width:max-content}
+.chip.warn{color:var(--warn)}
+
+/* Bottom */
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:28px max(12px,var(--sr)) calc(var(--sb) + 14px) max(12px,var(--sl));background:linear-gradient(transparent,rgba(0,0,0,.72) 30%);display:flex;flex-direction:column;gap:12px}
+.ghostbar{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap}
+.ghostbar input[type=range]{width:min(160px,36vw);accent-color:var(--ghost)}
+.pill{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.pill[aria-pressed="true"]{background:var(--ghost);color:#1a1205;border-color:var(--ghost)}
+.tray{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none;scroll-snap-type:x proximity}
+.tray::-webkit-scrollbar{display:none}
+.pose{flex:0 0 auto;width:64px;height:82px;border-radius:12px;background:rgba(255,255,255,.08);border:1.5px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;scroll-snap-align:start;overflow:hidden;position:relative}
+.pose[aria-pressed="true"]{border-color:var(--ghost)}
+.pose svg{width:44px;height:58px}
+.pose svg line,.pose svg circle{stroke:var(--ink);stroke-width:6;stroke-linecap:round;fill:none}
+.pose img{width:100%;height:62px;object-fit:contain}
+.pose span{font-size:10.5px;line-height:1.1;color:var(--muted);text-align:center;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pose.add{border:1.5px dashed var(--ghost);color:var(--ghost)}
+.pose.add svg{stroke:var(--ghost);fill:none;stroke-width:2;width:26px;height:26px}
+.pose.add span{color:var(--ghost)}
+.pose .del{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);font-size:12px;line-height:18px;color:var(--ink)}
+
+.shootrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.thumb{width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,.1);overflow:hidden;justify-self:start;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.shutter{width:76px;height:76px;border-radius:50%;border:4px solid #fff;padding:4px;position:relative}
+.shutter i{display:block;width:100%;height:100%;border-radius:50%;background:#fff;transition:transform .1s,background .2s}
+.shutter:active i{transform:scale(.88)}
+.shutter.ok i{background:var(--match)}
+.shutter svg{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);transform:rotate(-90deg);pointer-events:none}
+.autobtn{justify-self:end;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--muted)}
+.autobtn .sw{width:44px;height:26px;border-radius:999px;background:rgba(255,255,255,.18);position:relative;transition:background .2s}
+.autobtn .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.autobtn[aria-pressed="true"]{color:var(--match)}
+.autobtn[aria-pressed="true"] .sw{background:var(--match)}
+.autobtn[aria-pressed="true"] .sw::after{transform:translateX(18px)}
+
+.count{position:fixed;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:120px;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6);pointer-events:none;z-index:6}
+.flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .25s}
+.flash.on{opacity:.85;transition:none}
+.toast{position:fixed;left:50%;bottom:calc(var(--sb) + 230px);transform:translateX(-50%);background:var(--panel-solid);border:1px solid var(--line);padding:8px 14px;border-radius:10px;z-index:9;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+
+/* Sheets */
+.sheet{position:fixed;inset:0;z-index:10;background:var(--bg);display:flex;flex-direction:column;padding:calc(var(--st) + 12px) max(16px,var(--sr)) calc(var(--sb) + 16px) max(16px,var(--sl));gap:12px;overflow-y:auto}
+.sheet header{display:flex;align-items:center;gap:10px}
+.sheet h2{font-family:var(--display);font-size:18px;margin:0;margin-right:auto}
+.sheet .note{color:var(--muted);font-size:14px;margin:0}
+.canvaswrap{position:relative;flex:1 1 auto;min-height:220px;display:grid;place-items:center;background:repeating-conic-gradient(#1a222c 0 25%,#141b24 0 50%) 0 0/20px 20px;border-radius:14px;overflow:hidden}
+.canvaswrap canvas,.canvaswrap img{max-width:100%;max-height:100%;display:block;touch-action:none}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border-radius:12px;padding:12px 18px;font-weight:600;background:rgba(255,255,255,.1);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1 1 auto}
+.btn.primary{background:var(--ghost);color:#1a1205;border-color:var(--ghost)}
+.btn:disabled{opacity:.45;cursor:default}
+.spinner{position:absolute;inset:0;display:grid;place-items:center;background:rgba(11,15,20,.55);font-weight:600}
+.meters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.meter{border:1px solid var(--line);border-radius:10px;padding:8px}
+.meter b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.meter span{font-weight:600}
+.tips{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+
+/* Start screen */
+.start{position:fixed;inset:0;z-index:20;background:
+  radial-gradient(90% 60% at 80% 0%,rgba(242,176,76,.18),transparent 60%),
+  radial-gradient(80% 60% at 0% 100%,rgba(126,155,255,.16),transparent 60%),var(--bg);
+  display:flex;flex-direction:column;justify-content:center;gap:22px;padding:calc(var(--st) + 24px) max(24px,var(--sr)) calc(var(--sb) + 24px) max(24px,var(--sl));overflow-y:auto}
+.start h1{font-family:var(--display);font-size:clamp(34px,9vw,56px);line-height:1;margin:0;letter-spacing:-.02em}
+.start h1 span{color:var(--ghost)}
+.start p.lead{margin:0;color:var(--muted);font-size:16px;max-width:36ch}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;max-width:420px}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.steps li b{font-family:var(--mono);color:var(--ghost);font-size:13px;padding-top:2px}
+.start .btn{flex:0 0 auto;max-width:420px;font-size:17px;padding:16px}
+.start .fine{color:var(--muted);font-size:12.5px;margin:0;max-width:420px}
+.lang{display:flex;gap:6px}
+.lang button{padding:4px 12px;border-radius:999px;border:1px solid var(--line);font-size:13px}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <video id="video" playsinline muted autoplay></video>
+  <canvas id="ov"></canvas>
+</div>
+
+<div class="top">
+  <div class="brand">Shot<span>Sathi</span></div>
+  <button class="ibtn" id="b-grid" aria-pressed="true" aria-label="Grid"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></button>
+  <button class="ibtn" id="b-level" aria-pressed="false" aria-label="Level"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <button class="ibtn" id="b-timer" aria-label="Timer"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg><small id="timer-l"></small></button>
+  <button class="ibtn" id="b-torch" aria-pressed="false" aria-label="Flash" hidden><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button>
+  <button class="ibtn" id="b-zoom" aria-label="Zoom" hidden><small style="position:static;font-size:12px" id="zoom-l">1x</small></button>
+  <button class="ibtn" id="b-flip" aria-label="Switch camera"><svg viewBox="0 0 24 24"><path d="M4 7h11l-3-3M20 17H9l3 3"/><rect x="2" y="9" width="20" height="6" rx="1" stroke-dasharray="2 3"/></svg></button>
+</div>
+
+<div class="assist" id="assist" hidden>
+  <svg class="ring" viewBox="0 0 38 38"><circle cx="19" cy="19" r="16" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="4"/><circle id="ring-arc" cx="19" cy="19" r="16" fill="none" stroke="var(--ghost)" stroke-width="4" stroke-linecap="round" stroke-dasharray="0 101" transform="rotate(-90 19 19)"/><text x="19" y="23" text-anchor="middle" id="ring-t">0</text></svg>
+  <div><b id="assist-t">Loading Pose Assist…</b><small id="assist-s"></small></div>
+</div>
+<div class="chips" id="chips"></div>
+
+<div class="bottom">
+  <div class="ghostbar" id="ghostbar" hidden>
+    <button class="pill" id="b-mirror">Mirror</button>
+    <label class="pill" for="opacity">Opacity <input type="range" id="opacity" min="0.1" max="0.9" step="0.05" value="0.45"></label>
+    <button class="pill" id="b-style">Outline</button>
+    <button class="pill" id="b-reset">Reset</button>
+    <button class="pill" id="b-clear">✕</button>
+  </div>
+  <div class="tray" id="tray" aria-label="Poses"></div>
+  <div class="shootrow">
+    <button class="thumb" id="b-last" aria-label="Last photo"></button>
+    <button class="shutter" id="shutter" aria-label="Take photo"><i></i><svg viewBox="0 0 88 88"><circle id="hold-arc" cx="44" cy="44" r="41" fill="none" stroke="var(--match)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 258"/></svg></button>
+    <button class="autobtn" id="b-auto" aria-pressed="true"><span class="sw"></span>Auto</button>
+  </div>
+</div>
+
+<div class="count" id="count" hidden></div>
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="file" accept="image/*" hidden>
+
+<!-- Lift a subject from a reference photo -->
+<section class="sheet" id="lift" hidden>
+  <header><h2>Lift the pose</h2><button class="pill" id="lift-close">Cancel</button></header>
+  <p class="note" id="lift-note">Finding the person…</p>
+  <div class="canvaswrap"><canvas id="lift-c"></canvas><div class="spinner" id="lift-spin">Working…</div></div>
+  <div class="row">
+    <button class="btn" id="lift-person">Whole person</button>
+    <button class="btn primary" id="lift-use" disabled>Use this pose</button>
+  </div>
+</section>
+
+<!-- Review a captured photo -->
+<section class="sheet" id="review" hidden>
+  <header><h2>Your shot</h2><button class="pill" id="rev-close">Back to camera</button></header>
+  <div class="canvaswrap"><img id="rev-img" alt="Captured photo"></div>
+  <div class="meters" id="rev-meters"></div>
+  <ul class="tips" id="rev-tips"></ul>
+  <div class="row">
+    <button class="btn" id="rev-retake">Retake</button>
+    <button class="btn" id="rev-pose">Use as pose</button>
+    <button class="btn primary" id="rev-save">Save photo</button>
+  </div>
+</section>
+
+<section class="start" id="start">
+  <div class="lang" role="group" aria-label="Language"><button id="l-en" aria-pressed="true">English</button><button id="l-bn" aria-pressed="false">বাংলা</button></div>
+  <h1>Shot<span>Sathi</span><br>Live</h1>
+  <p class="lead" data-i18n="lead">Copy any pose. Line it up on your camera. Get coached until it's perfect.</p>
+  <ol class="steps">
+    <li><b>01</b><span data-i18n="s1">Pick a photo with a pose you love, or choose one of the built-in poses.</span></li>
+    <li><b>02</b><span data-i18n="s2">The pose floats over your camera. Drag, pinch and rotate it to fit.</span></li>
+    <li><b>03</b><span data-i18n="s3">Pose Assist tells your subject how to move. When it turns green, Auto-Capture takes the shot.</span></li>
+  </ol>
+  <button class="btn primary" id="b-start" data-i18n="start">Open camera</button>
+  <p class="fine" data-i18n="fine">Your photos never leave your phone. The pose AI runs on the device. Tip: add this page to your home screen to use it like an app.</p>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
