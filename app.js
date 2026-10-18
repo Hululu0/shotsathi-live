@@ -73,7 +73,7 @@ function save(k, v) { try { localStorage.setItem(k, v); return true; } catch { r
 /* ---------------- Built-in poses (see poses.js) ---------------- */
 const BUILTIN = POSES;
 const GHOST_COLORS = { body: "#F2B04C", hair: "#A86A1C", edge: "rgba(70,40,5,.7)", shade: "rgba(90,50,0,.25)" };
-const THUMB_COLORS = { body: "#E9D9C4", hair: "#4a3426", edge: "rgba(0,0,0,.45)", shade: "rgba(0,0,0,.2)" };
+const THUMB_COLORS = { body: "#2C4152", hair: "#16232D", edge: "rgba(252,247,240,.55)", shade: "rgba(0,0,0,.18)" };
 const CHAIN = ["sh", "el", "wr", "hip", "kn", "an"];
 const MP = { nose: 0, sh: [11, 12], el: [13, 14], wr: [15, 16], hip: [23, 24], kn: [25, 26], an: [27, 28] };
 const thumbCache = new Map();
@@ -803,7 +803,14 @@ setGhost(firstPose());
 if (!load("ssl-onboarded")) showOnboarding();
 requestAnimationFrame(loop);
 
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  // when a new version takes over, reload once so the new UI shows straight away
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded && !S.stream) { // never interrupt an open camera
+    reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
+}
 
 // testing hook
 window.__ss = { S, setGhost, BUILTIN, compare, targetJoints, getPoseImage, openLift };

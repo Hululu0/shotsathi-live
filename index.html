@@ -227,6 +227,51 @@ button{cursor:pointer;border:0;background:none}
 @keyframes obRing{0%{stroke-dashoffset:252}80%,100%{stroke-dashoffset:0}}
 @media (max-height:700px){.ob-demo{width:min(230px,60vw)}.ob-stack{height:170px}.ob-opt{padding:14px 18px}}
 @media (prefers-reduced-motion:reduce){.ob-body,.ob-tap,.ob-dot::after,.ob-tip em,.ob-shutter circle{animation:none}.ob-tip em:first-child{opacity:1}.ob-dot::after{background:#3DDC84}}
+
+/* ---------- Paper look on the camera screen ---------- */
+.top{background:none}
+.brand{font-family:var(--serif);font-weight:640;font-size:17px;color:var(--navy);background:rgba(255,255,255,.82);backdrop-filter:blur(12px);padding:7px 14px;border-radius:999px;margin-right:auto;box-shadow:0 6px 18px -8px rgba(0,0,0,.35)}
+.brand span{color:#C9821F}
+.ibtn{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.82);backdrop-filter:blur(12px);color:var(--navy);box-shadow:0 6px 18px -8px rgba(0,0,0,.35)}
+.ibtn[aria-pressed="true"]{background:var(--navy);color:#fff}
+.assist{background:rgba(255,255,255,.88);border:0;color:var(--navy);backdrop-filter:blur(14px);box-shadow:0 10px 24px -10px rgba(0,0,0,.4)}
+.assist small{color:var(--pmuted)}
+.assist.ok{background:#E6F7EE;border:0}
+.ring text{fill:var(--navy)}
+.ring circle:first-child{stroke:rgba(28,49,64,.12)}
+.chip{background:rgba(255,255,255,.85);color:var(--navy);backdrop-filter:blur(10px);border-radius:999px;padding:5px 10px;font-family:"Hind Siliguri",system-ui,sans-serif;font-size:13px;font-weight:600}
+.chip.warn{color:#B4540A}
+
+.bottom{background-color:rgba(244,241,236,.94);background-image:radial-gradient(rgba(28,49,64,.1) 1px,transparent 1.2px);background-size:20px 20px;backdrop-filter:blur(16px);
+  border-radius:28px 28px 0 0;padding-top:14px;color:var(--navy);box-shadow:0 -12px 40px -16px rgba(0,0,0,.45);gap:10px;color-scheme:light}
+.bottom::before{content:"";display:block;width:40px;height:5px;border-radius:99px;background:rgba(28,49,64,.18);margin:-4px auto 0}
+.pill{background:var(--cream);border:1px solid var(--cream-line);color:var(--navy)}
+.pill[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.filters .pill{color:var(--navy)}
+.filters .pill[aria-pressed="true"]{color:#fff}
+.filters .pin{color:#C0392B;border-color:#F1C9C3;background:#FFF4F2}
+.ghostbar input[type=range]{accent-color:var(--navy)}
+.pinfo{background:var(--cream);border:1px solid var(--cream-line);color:var(--navy);backdrop-filter:none}
+.pinfo b{font-family:var(--serif);font-weight:640;font-size:16px}
+.pinfo span{color:#3F4F5B}
+.pinfo small{color:#A86A1C}
+.pose{background:var(--cream);border:1.5px solid var(--cream-line);border-radius:16px}
+.pose[aria-pressed="true"]{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy) inset}
+.pose span{color:var(--pmuted)}
+.pose.add{border:1.5px dashed #C9821F;color:#A86A1C;background:#FFF8EC}
+.pose.add svg{stroke:#C9821F}
+.pose.add span{color:#A86A1C}
+.pose .del{background:var(--navy);color:#fff}
+.trayhint{color:var(--pmuted)}
+.thumb{background:var(--cream);border:1px solid var(--cream-line);border-radius:14px}
+.shutter{border-color:var(--navy);background:#fff}
+.shutter i{background:var(--navy)}
+.shutter.ok i{background:#2FB66E}
+.autobtn{color:var(--pmuted)}
+.autobtn .sw{background:rgba(28,49,64,.18)}
+.autobtn[aria-pressed="true"]{color:#2F9A5F}
+.autobtn[aria-pressed="true"] .sw{background:#2FB66E}
+.toast{background:var(--navy);color:#fff;border:0;border-radius:999px;padding:10px 18px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -317,6 +362,6 @@ button{cursor:pointer;border:0;background:none}
   <p class="fine" data-i18n="fine">Your photos never leave your phone. The pose AI runs on the device. Tip: add this page to your home screen to use it like an app.</p>
 </section>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
